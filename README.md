@@ -38,13 +38,7 @@ conda activate emg2qwerty
 pip install -e .
 ```
 
-For the C247A final report, download the recordings ZIP for **one participant** (ID `89335547`). [UCLA Box](https://ucla.app.box.com/s/3xc4nwpfjfpo6ydjs94t0v2kuq37d5eg)
-
-```shell
-# Extract and verify the 18 course recordings in ~/emg2qwerty/data
-cd ~/emg2qwerty
-python3 scripts/setup_data.py "/path/to/box-download.zip"
-```
+For the C247A final report, download the recordings ZIP for **one participant** (ID `89335547`) and extract the 18 `.hdf5` files directly into `~/emg2qwerty/data`. [UCLA Box](https://ucla.app.box.com/s/3xc4nwpfjfpo6ydjs94t0v2kuq37d5eg)
 
 ```shell
 # Download the full dataset, extract, and symlink to ~/emg2qwerty/data
