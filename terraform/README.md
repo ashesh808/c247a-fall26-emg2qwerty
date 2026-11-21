@@ -1,33 +1,103 @@
-# Google Cloud GPU VM
+# Setup GCP VM with Terraform
 
-Terraform creates one `n1-standard-4` instance with 4 vCPUs, 15 GiB of RAM, one NVIDIA T4, and a 50 GB balanced persistent boot disk. It defaults to `asia-east1-a` in Taiwan. The VM has a public IPv4 address and accepts HTTP and HTTPS on TCP ports 80 and 443. SSH uses Identity-Aware Proxy and OS Login.
+This Terraform configuration automatically creates a Google Cloud VM with an NVIDIA T4 GPU for the C247A final project. Instead of manually configuring the VM in Google Cloud Console, you can provision it by running a few commands.
 
-## Boot image
+## VM Specifications
 
-Set `TF_VAR_boot_image` to the full resource path of a bootable Deep Learning VM M129 image with Debian 11 and Python 3.10. If your team preserved M129 as a custom Compute Engine image, use `projects/IMAGE_PROJECT/global/images/IMAGE_NAME`. The Terraform identity needs access to the image, and the image must fit on a 50 GB disk.
+| Component | Specification |
+| --- | --- |
+| CPU | 4 vCPUs (`n1-standard-4`) |
+| RAM | 15 GiB |
+| GPU | 1 NVIDIA T4 |
+| Storage | 50 GB balanced persistent boot disk |
+| OS | Ubuntu 22.04 Base Deep Learning VM with NVIDIA drivers included |
+| Region | Taiwan (`asia-east1`), zone `asia-east1-a` by default |
 
-Google lists April 1, 2026 as the end of availability for its Debian 11 and Python 3.10 CUDA 12.4 base image. Exact M129 deployment requires a bootable copy if the public image has been retired. See the [M129 release notes](https://docs.cloud.google.com/deep-learning-vm/docs/release-notes#April_16_2025), [image catalog](https://docs.cloud.google.com/deep-learning-vm/docs/images#base_versions), and [image availability policy](https://docs.cloud.google.com/deep-learning-vm/docs/framework-support-policy#support_policy_schedule).
+## Step 1: Install Terraform
 
-## Create the VM
+Follow the [Terraform installation instructions](https://developer.hashicorp.com/terraform/install).
 
-Use a project with billing enabled, available T4 quota in `asia-east1`, and permission to create Compute Engine instances and VPC resources. From the repository root, replace the placeholders and run the following commands. If the APIs are already enabled, skip the `gcloud services enable` command.
+## Step 2: Install Google Cloud CLI
+
+Follow the [Google Cloud CLI installation instructions](https://docs.cloud.google.com/sdk/docs/install-sdk).
+
+## Step 3: Configure Your Project
+
+From the repository root, copy the example file.
 
 ```sh
-export TF_VAR_project_id='YOUR_PROJECT_ID'
-export TF_VAR_boot_image='projects/IMAGE_PROJECT/global/images/IMAGE_NAME'
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+```
 
+Replace `YOUR_PROJECT_ID` in `terraform/terraform.tfvars` with your project ID. The project needs billing enabled and quota for one T4 in `asia-east1`. If the default zone is out of capacity, add `zone = "asia-east1-c"` to the same file.
+
+## Step 4: Deploy the VM
+
+From the repository root, sign in to Google Cloud, authorize Terraform, and enable the Compute Engine and Identity-Aware Proxy APIs.
+
+```sh
+PROJECT_ID=$(awk -F '"' '/^[[:space:]]*project_id[[:space:]]*=/ { print $2 }' terraform/terraform.tfvars)
 gcloud auth login
-gcloud auth application-default login --project="$TF_VAR_project_id"
-gcloud services enable compute.googleapis.com iap.googleapis.com --project="$TF_VAR_project_id"
+gcloud config set project "$PROJECT_ID"
+gcloud auth application-default login --project="$PROJECT_ID"
+gcloud services enable compute.googleapis.com iap.googleapis.com --project="$PROJECT_ID"
+```
 
+Initialize Terraform, preview what it will create, and confirm the deployment when `apply` prompts you.
+
+```sh
 terraform -chdir=terraform init
+terraform -chdir=terraform plan
 terraform -chdir=terraform apply
 ```
 
-If `asia-east1-a` has no T4 capacity, set `export TF_VAR_zone=asia-east1-c` before retrying. Both zones offer N1 VMs with T4s. [Google Cloud GPU locations](https://docs.cloud.google.com/compute/docs/regions-zones/gpu-regions-zones)
+## Connect to the VM
 
-## Connect and verify
+Both methods use Identity-Aware Proxy (IAP). Your account needs IAP tunnel access and an OS Login role. The VM uses an external IP for outbound downloads, and the firewall allows inbound SSH only from IAP. [Google Cloud IAP SSH guide](https://docs.cloud.google.com/compute/docs/connect/ssh-using-iap)
 
-Get the public IP with `terraform -chdir=terraform output -raw external_ip`. For SSH, run the command printed by `terraform -chdir=terraform output -raw ssh_command`. Your Google Cloud identity needs IAP tunnel access and an OS Login role. After first boot, allow the NVIDIA driver installation to complete, then run `nvidia-smi` and `python3 --version` on the VM. [IAP setup](https://docs.cloud.google.com/iap/docs/using-tcp-forwarding), [Deep Learning VM setup](https://docs.cloud.google.com/deep-learning-vm/docs/cli)
+### Terminal SSH
 
-Run `terraform -chdir=terraform destroy` with the same inputs when you are finished. This also deletes the boot disk.
+Print the SSH command, then copy and run it.
+
+```sh
+terraform -chdir=terraform output -raw ssh_command
+```
+
+Run `nvidia-smi` on the VM to check the GPU. For VS Code setup, run `whoami` to get your OS Login username.
+
+### VS Code Remote - SSH
+
+Install the Remote - SSH extension, then connect once using terminal SSH to register your key. Add this entry to your local `~/.ssh/config`. Replace `YOUR_OS_LOGIN_USERNAME` and `YOUR_PROJECT_ID`, and use your VM's zone.
+
+```sshconfig
+Host emg2qwerty-gpu
+    User YOUR_OS_LOGIN_USERNAME
+    IdentityFile ~/.ssh/google_compute_engine
+    ProxyCommand gcloud compute start-iap-tunnel %h %p --listen-on-stdin --project=YOUR_PROJECT_ID --zone=asia-east1-a
+```
+
+In the VS Code Command Palette, run **Remote-SSH: Connect to Host** and select `emg2qwerty-gpu`. [VS Code Remote SSH guide](https://code.visualstudio.com/docs/remote/ssh)
+
+## Stop / Start the VM
+
+Running the GPU VM consumes credits. Run these commands from your local terminal with the project selected in Step 4. If you set `zone = "asia-east1-c"`, use that zone in both commands.
+
+Stop the VM when you finish working.
+
+```sh
+gcloud compute instances stop emg2qwerty-gpu --zone=asia-east1-a
+```
+
+Start it when you need it again.
+
+```sh
+gcloud compute instances start emg2qwerty-gpu --zone=asia-east1-a
+```
+
+## Delete the VM
+
+When you are done with the project, run the command below and confirm the deletion when prompted. This deletes the VM, its boot disk, and its Terraform-managed network resources. Save any files you want to keep first.
+
+```sh
+terraform -chdir=terraform destroy
+```
