@@ -36,8 +36,12 @@ cd ~/emg2qwerty
 conda env create -f environment.yml
 conda activate emg2qwerty
 pip install -e .
+```
 
-# Download the dataset, extract, and symlink to ~/emg2qwerty/data
+For the C247A final report, download the recordings ZIP for **one participant** (ID `89335547`) and extract the 18 `.hdf5` files directly into `~/emg2qwerty/data`. [UCLA Box](https://ucla.app.box.com/s/3xc4nwpfjfpo6ydjs94t0v2kuq37d5eg)
+
+```shell
+# Download the full dataset, extract, and symlink to ~/emg2qwerty/data
 cd ~ && wget https://fb-ctrl-oss.s3.amazonaws.com/emg2qwerty/emg2qwerty-data-2021-08.tar.gz
 tar -xvzf emg2qwerty-data-2021-08.tar.gz
 ln -s ~/emg2qwerty-data-2021-08 ~/emg2qwerty/data
@@ -76,6 +80,8 @@ python scripts/convert_to_bids.py
 ```
 
 ## Training
+
+Run training from the repository root. The default config reads `data/` relative to the directory where training starts.
 
 Generic user model:
 
