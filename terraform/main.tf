@@ -11,11 +11,12 @@ terraform {
 
 provider "google" {
   project = var.project_id
-  region  = "asia-east1"
+  region  = local.region
 }
 
 locals {
-  name = "emg2qwerty-gpu"
+  name   = "emg2qwerty-gpu"
+  region = substr(var.zone, 0, length(var.zone) - 2)
 }
 
 resource "google_compute_network" "vm" {
@@ -25,6 +26,7 @@ resource "google_compute_network" "vm" {
 
 resource "google_compute_subnetwork" "vm" {
   name          = local.name
+  region        = local.region
   network       = google_compute_network.vm.id
   ip_cidr_range = "10.42.0.0/24"
 }

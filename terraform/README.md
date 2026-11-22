@@ -29,7 +29,7 @@ From the repository root, copy the example file.
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 ```
 
-Replace `YOUR_PROJECT_ID` in `terraform/terraform.tfvars` with your project ID. The project needs billing enabled and quota for one T4 in `asia-east1`. If the default zone is out of capacity, add `zone = "asia-east1-c"` to the same file.
+Replace `YOUR_PROJECT_ID` in `terraform/terraform.tfvars` with your project ID. The project needs billing enabled, project-wide quota for one GPU, and quota for one T4 in the selected region. If the default zone is out of capacity, set `zone` in the same file. Supported zones are listed in [variables.tf](variables.tf).
 
 ## Step 4: Deploy the VM
 
@@ -80,7 +80,7 @@ In the VS Code Command Palette, run **Remote-SSH: Connect to Host** and select `
 
 ## Stop / Start the VM
 
-Running the GPU VM consumes credits. Run these commands from your local terminal with the project selected in Step 4. If you set `zone = "asia-east1-c"`, use that zone in both commands.
+Running the GPU VM consumes credits. Run these commands from your local terminal with the project selected in Step 4 and use your VM's zone in both commands.
 
 Stop the VM when you finish working.
 
